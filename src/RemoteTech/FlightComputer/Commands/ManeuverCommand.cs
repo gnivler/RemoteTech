@@ -57,7 +57,7 @@ namespace RemoteTech.FlightComputer.Commands
                 this.EngineActivated = false;
                 RTUtil.ScreenMessage("[Flight Computer]: No engine to carry out the maneuver.");
             } else {
-                RemainingTime = RemainingDelta / thrustToMass;
+                RemainingTime = GetBurnTime(RemainingDelta);
             }
 
             return true;
@@ -290,7 +290,6 @@ namespace RemoteTech.FlightComputer.Commands
 
             // Before any throttling, those two values may differ from after the throttling took place
             this.RemainingDelta = this.getRemainingDeltaV(computer);
-            //this.RemainingTime = this.RemainingDelta / thrustToMass;
 
             // In case we would overpower with 100% thrust, calculate how much we actually need and set it.
             if (computer.Vessel.acceleration.magnitude > this.RemainingDelta)
@@ -305,9 +304,6 @@ namespace RemoteTech.FlightComputer.Commands
 
             // After throttling, the remaining time differs from beforehand (dividing delta by throttled thrustToMass)
             //this.RemainingTime = this.RemainingDelta / (ctrlState.mainThrottle * thrustToMass);
-
-
-            //BetterBurnTime burnTimeObject = new BetterBurnTime();
 
             this.RemainingTime = GetBurnTime(this.RemainingDelta);
 
