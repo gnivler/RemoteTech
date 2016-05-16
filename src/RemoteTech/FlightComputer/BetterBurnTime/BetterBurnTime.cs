@@ -148,18 +148,13 @@ namespace RemoteTech
         /// <summary>
         /// Calculate the number of seconds required to burn.
         /// </summary>
-        private double GetBurnTime(double dVremaining)
+        double GetBurnTime(double dVremaining)
         {
-            //private bool wasFuelCheat = false;
-            //int lastEngineCount;
-            //private string lastUpdateText;
-            //private int lastBurnTime;
-
             ShipState vessel = new ShipState();
             Tally propellantsConsumed = new Tally();
 
-        // How thirsty are we?
-        double totalThrust; // kilonewtons
+            // How thirsty are we?
+            double totalThrust; // kilonewtons
             GetThrustInfo(propellantsConsumed, out totalThrust);
             if (totalThrust < ACCELERATION_EPSILON)
             {

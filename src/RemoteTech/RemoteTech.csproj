@@ -64,7 +64,6 @@
     <Compile Include="AddOns\ControlLockAPI.cs" />
     <Compile Include="AddOns\KerbalAlarmClockAPI.cs" />
     <Compile Include="API\API.cs" />
-    <Compile Include="FlightComputer\BetterBurnTime\BetterBurnTime.cs" />
     <Compile Include="FlightComputer\BetterBurnTime\Extensions.cs" />
     <Compile Include="FlightComputer\BetterBurnTime\Propulsion.cs" />
     <Compile Include="FlightComputer\BetterBurnTime\ShipState.cs" />

@@ -63,6 +63,175 @@ namespace RemoteTech.FlightComputer.Commands
             return true;
         }
 
+        // paste from BetterBurnTime.cs
+        //
+
+        double ACCELERATION_EPSILON = 0.000001;
+        double KERBIN_GRAVITY = 9.81;
+        
+        double GetBurnTime(double dVremaining)
+        {
+            ShipState vessel = new ShipState();
+            Tally propellantsConsumed = new Tally();
+
+            // How thirsty are we?
+            double totalThrust; // kilonewtons
+            GetThrustInfo(propellantsConsumed, out totalThrust);
+            if (totalThrust < ACCELERATION_EPSILON)
+            {
+                // Can't thrust, will take forever.
+                return double.PositiveInfinity;
+            }
+
+            // If infinite fuel is turned on, or if the "use simple acceleration" config
+            // option is set, just do a simple dV calculation.
+            if (CheatOptions.InfinitePropellant)
+            {
+                return dVremaining * vessel.TotalMass / totalThrust;
+            }
+
+            // How long can we burn until we run out of fuel?
+            double maxBurnTime = CalculateMaxBurnTime(vessel, propellantsConsumed);
+
+            // How much fuel do we need to burn to get the dV we want?
+            double totalConsumption = propellantsConsumed.Sum; // tons/second
+            double exhaustVelocity = totalThrust / totalConsumption; // meters/second
+            double massRatio = Math.Exp(dVremaining / exhaustVelocity);
+            double currentTotalShipMass = vessel.TotalMass;
+            double fuelMass = currentTotalShipMass * (1.0 - 1.0 / massRatio);
+            double burnTimeNeeded = fuelMass / totalConsumption;
+            if (burnTimeNeeded < maxBurnTime)
+            {
+                // We can burn that long! We're done.
+                return burnTimeNeeded;
+            }
+
+            // Uh oh.  There's not enough fuel to get that much dV.  Here's what we'll do:
+            // Take the amount of burn time that we can actually handle, and do that.
+            // Then assume that we'll do constant acceleration at that speed for the
+            // remainder of the dV.
+            double fuelBurned = totalConsumption * maxBurnTime; // tons
+            double emptyMass = currentTotalShipMass - fuelBurned;
+            double realdV = (totalThrust / totalConsumption) * Math.Log(currentTotalShipMass / emptyMass);
+            double highestAcceleration = totalThrust / emptyMass;
+            double overflowdV = dVremaining - realdV;
+            return maxBurnTime + overflowdV / highestAcceleration;
+        }
+
+        /// <summary>
+        /// Get the vessel's acceleration ability, in m/s2
+        /// </summary>
+        /// <param name="propellantsConsumed">All the propellants consumed, in tons/second for each one</param>
+        /// <param name="totalThrust">The total thrust produced, in kilonewtons</param>
+        private void GetThrustInfo(Tally propellantsConsumed, out double totalThrust)
+        {
+            // Add up all the thrust for all the active engines on the vessel.
+            // We do this as a vector because the engines might not be parallel to each other.
+            Vector3 totalThrustVector = Vector3.zero;
+            totalThrust = 0.0F;
+            propellantsConsumed.Zero();
+            int lastEngineCount = -1;
+            ShipState vessel = new ShipState();
+
+            Tally availableResources = vessel.AvailableResources;
+            int engineCount = 0;
+            for (int engineIndex = 0; engineIndex < vessel.ActiveEngines.Count; ++engineIndex)
+            {
+                ModuleEngines engine = vessel.ActiveEngines[engineIndex];
+                if (engine.thrustPercentage > 0)
+                {
+                    double engineKilonewtons = engine.ThrustLimit();
+                    if (!CheatOptions.InfinitePropellant)
+                    {
+                        // Possible future consideraiton:
+                        // Get the vacuum Isp from engine.atmosphereCurve.Evaluate(0), rather than ask
+                        // for engine.realIsp, because there may be mods that tinker with the atmosphere
+                        // curve, which changes the actual Isp that the game uses for vacuum without
+                        // updating engine.realIsp.
+                        double engineIsp = engine.realIsp;
+
+                        double engineTotalFuelConsumption = engineKilonewtons / (KERBIN_GRAVITY * engineIsp); // tons/sec
+                        double ratioSum = 0.0;
+                        bool isStarved = false;
+                        for (int propellantIndex = 0; propellantIndex < engine.propellants.Count; ++propellantIndex)
+                        {
+                            Propellant propellant = engine.propellants[propellantIndex];
+                            if (!ShouldIgnore(propellant.name))
+                            {
+                                if (!availableResources.Has(propellant.name))
+                                {
+                                    isStarved = true;
+                                    break;
+                                }
+                                ratioSum += propellant.ratio;
+                            }
+                        }
+                        if (isStarved) continue;
+                        if (ratioSum > 0)
+                        {
+                            double ratio = 1.0 / ratioSum;
+                            for (int propellantIndex = 0; propellantIndex < engine.propellants.Count; ++propellantIndex)
+                            {
+                                Propellant propellant = engine.propellants[propellantIndex];
+                                if (!ShouldIgnore(propellant.name))
+                                {
+                                    double consumptionRate = ratio * propellant.ratio * engineTotalFuelConsumption; // tons/sec
+                                    propellantsConsumed.Add(propellant.name, consumptionRate);
+                                }
+                            }
+                        }
+                    } // if we need to worry about fuel
+                    ++engineCount;
+                    totalThrustVector += engine.Forward() * (float)engineKilonewtons;
+                } // if the engine is operational
+            } // for each engine module on the part
+            totalThrust = totalThrustVector.magnitude;
+            if (engineCount != lastEngineCount)
+            {
+                lastEngineCount = engineCount;
+            }
+        }
+
+        /// <summary>
+        /// Calculate how long we can burn at full throttle until something important runs out.
+        /// </summary>
+        /// <param name="vessel"></param>
+        /// <param name="propellantsConsumed"></param>
+        /// <param name="propellantsAvailable"></param>
+        /// <param name="maxBurnTime"></param>
+        private static double CalculateMaxBurnTime(ShipState vessel, Tally propellantsConsumed)
+        {
+            double maxBurnTime = double.PositiveInfinity;
+            Tally availableResources = vessel.AvailableResources;
+            foreach (string resourceName in propellantsConsumed.Keys)
+            {
+                if (ShouldIgnore(resourceName))
+                {
+                    // ignore this for burn time, it's replenishable
+                    continue;
+                }
+                if (!availableResources.Has(resourceName))
+                {
+                    // we're all out!
+                    return 0.0;
+                }
+                double availableAmount = availableResources[resourceName];
+                double rate = propellantsConsumed[resourceName];
+                double burnTime = availableAmount / rate;
+                if (burnTime < maxBurnTime) maxBurnTime = burnTime;
+            }
+            return maxBurnTime;
+        }
+
+        private static bool ShouldIgnore(string propellantName)
+        {
+            return "ElectricCharge".Equals(propellantName);
+        }
+
+        // end paste from BetterBurnTime.cs
+        //
+
+
         /// <summary>
         /// Gets the current remaining delta velocity for this maneuver burn determined by the vessels burn vector of the passed FlightComputer instance.
         /// </summary>
@@ -121,7 +290,7 @@ namespace RemoteTech.FlightComputer.Commands
 
             // Before any throttling, those two values may differ from after the throttling took place
             this.RemainingDelta = this.getRemainingDeltaV(computer);
-            this.RemainingTime = this.RemainingDelta / thrustToMass;
+            //this.RemainingTime = this.RemainingDelta / thrustToMass;
 
             // In case we would overpower with 100% thrust, calculate how much we actually need and set it.
             if (computer.Vessel.acceleration.magnitude > this.RemainingDelta)
@@ -135,7 +304,12 @@ namespace RemoteTech.FlightComputer.Commands
             // TODO: THIS CAN PROBABLY BE REMOVED? RemainingDelta = this.getRemainingDeltaV(computer);
 
             // After throttling, the remaining time differs from beforehand (dividing delta by throttled thrustToMass)
-            this.RemainingTime = this.RemainingDelta / (ctrlState.mainThrottle * thrustToMass);
+            //this.RemainingTime = this.RemainingDelta / (ctrlState.mainThrottle * thrustToMass);
+
+
+            //BetterBurnTime burnTimeObject = new BetterBurnTime();
+
+            this.RemainingTime = GetBurnTime(this.RemainingDelta);
 
             // We need to abort if the remaining delta was already low enough so it only takes exactly one more tick!
             double ticksRemaining = this.RemainingTime / TimeWarp.deltaTime;
