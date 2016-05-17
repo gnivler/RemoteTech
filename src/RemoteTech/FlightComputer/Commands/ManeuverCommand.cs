@@ -24,6 +24,7 @@ namespace RemoteTech.FlightComputer.Commands
 
         double ACCELERATION_EPSILON = 0.000001;
         double KERBIN_GRAVITY = 9.81;
+        double totalThrust;
 
         public override string Description
         {
@@ -57,7 +58,7 @@ namespace RemoteTech.FlightComputer.Commands
 
             ShipState vessel = new ShipState();
             Tally propellantsConsumed = new Tally();
-            double totalThrust; 
+
             GetThrustInfo(propellantsConsumed, out totalThrust);
             double thrustToMass = totalThrust / f.Vessel.GetTotalMass();
 
@@ -91,7 +92,6 @@ namespace RemoteTech.FlightComputer.Commands
             Tally propellantsConsumed = new Tally();
 
             // How thirsty are we?
-            double totalThrust; // kilonewtons
             GetThrustInfo(propellantsConsumed, out totalThrust);
             if (totalThrust < ACCELERATION_EPSILON)
             {
@@ -305,7 +305,7 @@ namespace RemoteTech.FlightComputer.Commands
 
             ShipState vessel = new ShipState();
             Tally propellantsConsumed = new Tally();
-            double totalThrust; // kilonewtons
+
             GetThrustInfo(propellantsConsumed, out totalThrust);
             double thrustToMass = totalThrust / computer.Vessel.GetTotalMass();
 
@@ -371,7 +371,11 @@ namespace RemoteTech.FlightComputer.Commands
         {
             if (Node == null) return 0;
 
-            return Node.DeltaV.magnitude / (FlightCore.GetTotalThrust(f.Vessel) / f.Vessel.GetTotalMass());
+            Tally propellantsConsumed = new Tally();
+            GetThrustInfo(propellantsConsumed, out totalThrust);
+            return Node.DeltaV.magnitude / totalThrust / f.Vessel.GetTotalMass();
+
+            //return Node.DeltaV.magnitude / (FlightCore.GetTotalThrust(f.Vessel) / f.Vessel.GetTotalMass());
         }
 
         public static ManeuverCommand WithNode(int nodeIndex, FlightComputer f)
