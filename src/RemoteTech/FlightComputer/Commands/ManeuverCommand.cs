@@ -22,6 +22,9 @@ namespace RemoteTech.FlightComputer.Commands
         private double lowestDeltaV = 0.0;
         private bool abortOnNextExecute = false;
 
+        double ACCELERATION_EPSILON = 0.000001;
+        double KERBIN_GRAVITY = 9.81;
+
         public override string Description
         {
             get
@@ -52,13 +55,29 @@ namespace RemoteTech.FlightComputer.Commands
             RemainingDelta = this.getRemainingDeltaV(f);
             this.EngineActivated = true;
 
+            ShipState vessel = new ShipState();
+            Tally propellantsConsumed = new Tally();
+            double totalThrust; 
+            GetThrustInfo(propellantsConsumed, out totalThrust);
+            double thrustToMass = totalThrust / f.Vessel.GetTotalMass();
+
+            if (thrustToMass == 00)
+            {
+                this.EngineActivated = false;
+            }
+            else
+            {
+                RemainingTime = GetBurnTime(RemainingDelta);
+            }
+
+            /*
             double thrustToMass = FlightCore.GetTotalThrust(f.Vessel) / f.Vessel.GetTotalMass();
             if (thrustToMass == 0.0) {
                 this.EngineActivated = false;
                 RTUtil.ScreenMessage("[Flight Computer]: No engine to carry out the maneuver.");
             } else {
                 RemainingTime = GetBurnTime(RemainingDelta);
-            }
+            }*/
 
             return true;
         }
@@ -66,9 +85,6 @@ namespace RemoteTech.FlightComputer.Commands
         // paste from BetterBurnTime.cs
         //
 
-        double ACCELERATION_EPSILON = 0.000001;
-        double KERBIN_GRAVITY = 9.81;
-        
         double GetBurnTime(double dVremaining)
         {
             ShipState vessel = new ShipState();
@@ -278,15 +294,23 @@ namespace RemoteTech.FlightComputer.Commands
             var orientation = Quaternion.LookRotation(forward, up);
             FlightCore.HoldOrientation(ctrlState, computer, orientation, true);
 
-            // This represents the theoretical acceleration but is off by a few m/s^2, probably because some parts are partially physicsless
+            /*// This represents the theoretical acceleration but is off by a few m/s^2, probably because some parts are partially physicsless
             double thrustToMass = (FlightCore.GetTotalThrust(computer.Vessel) / computer.Vessel.GetTotalMass());
             // We need to know if the engine was activated or not to show the proper info text in the command
             if (thrustToMass == 0.0)
             {
                 this.EngineActivated = false;
                 return false;
-            }
-            this.EngineActivated = true;
+            }*/
+
+            ShipState vessel = new ShipState();
+            Tally propellantsConsumed = new Tally();
+            double totalThrust; // kilonewtons
+            GetThrustInfo(propellantsConsumed, out totalThrust);
+            double thrustToMass = totalThrust / computer.Vessel.GetTotalMass();
+
+
+            //this.EngineActivated = true;
 
             // Before any throttling, those two values may differ from after the throttling took place
             this.RemainingDelta = this.getRemainingDeltaV(computer);
