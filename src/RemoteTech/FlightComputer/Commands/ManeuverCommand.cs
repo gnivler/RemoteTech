@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 
@@ -134,6 +135,40 @@ namespace RemoteTech.FlightComputer.Commands
             return maxBurnTime + overflowdV / highestAcceleration;
         }
 
+        // WIP if you can call it that
+
+        private void PrototypeGetThrust(out double totalThrust, out double avgISP)
+        {
+            Vector3 totalThrustVector = Vector3.zero;
+            Vessel vessel = FlightGlobals.ActiveVessel;
+            List<ModuleEngines> activeEngines = new List<ModuleEngines>();
+            totalThrust = 0.0F;
+
+            activeEngines.Clear();
+            for (int index = 0; index < vessel.parts.Count; ++index)
+            {
+                Part part = vessel.parts[index];
+                if (part.HasModule<ModuleEngines>())
+                {
+                    engines.Add(part);
+                }
+            }
+
+
+            int engineCount = 0;
+            for (int engineIndex = 0; engineIndex < vessel.ActiveEngines.Count; ++engineIndex)
+            {
+                ModuleEngines engine = vessel.ActiveEngines[engineIndex];
+                if (engine.thrustPercentage > 0)
+                {
+                    double engineKilonewtons = engine.ThrustLimit();
+                    if (!CheatOptions.InfinitePropellant)
+                    {
+
+                    }
+
+
+
         /// <summary>
         /// Get the vessel's acceleration ability, in m/s2
         /// </summary>
@@ -206,6 +241,7 @@ namespace RemoteTech.FlightComputer.Commands
             {
                 lastEngineCount = engineCount;
             }
+            vessel = null;
         }
 
         /// <summary>
