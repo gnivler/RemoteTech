@@ -160,6 +160,24 @@ namespace RemoteTech.FlightComputer
 
             return thrust;
         }
+
+        public static void GetThrustInfo(Vessel v, out double totalThrust, out double avgISP)
+        {
+            double thrust = 0.0;
+            double totalISP = 0;  // start adding ISP and count engines to get an average later
+            double numEngines = 0;
+            foreach (var pm in v.parts.SelectMany(p => p.FindModulesImplementing<ModuleEngines>()))
+            {
+                if (!FlightCore.hasPropellant(pm.propellants))
+                {
+                    thrust += (double)pm.maxThrust * (pm.thrustPercentage / 100);
+                    totalISP += pm.multIsp;
+                    numEngines++;
+                }
+            }
+            totalThrust = thrust;
+            avgISP = totalISP / numEngines;
+        }
     }
 
     public static class SteeringHelper

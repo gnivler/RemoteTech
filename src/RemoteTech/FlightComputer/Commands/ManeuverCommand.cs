@@ -23,9 +23,12 @@ namespace RemoteTech.FlightComputer.Commands
         private double lowestDeltaV = 0.0;
         private bool abortOnNextExecute = false;
 
+
+        // from BBT
         double ACCELERATION_EPSILON = 0.000001;
         double KERBIN_GRAVITY = 9.81;
         double totalThrust;
+        // end paste
 
         public override string Description
         {
@@ -69,6 +72,7 @@ namespace RemoteTech.FlightComputer.Commands
             }
             else
             {
+                // using BBT hatchet-ported method
                 RemainingTime = GetBurnTime(RemainingDelta);
             }
 
@@ -85,7 +89,7 @@ namespace RemoteTech.FlightComputer.Commands
         }
 
         // paste from BetterBurnTime.cs
-        //
+        // credit to Snark / KSPSnark
 
         double GetBurnTime(double dVremaining)
         {
@@ -134,40 +138,7 @@ namespace RemoteTech.FlightComputer.Commands
             double overflowdV = dVremaining - realdV;
             return maxBurnTime + overflowdV / highestAcceleration;
         }
-
-        // WIP if you can call it that
-
-        private void PrototypeGetThrust(out double totalThrust, out double avgISP)
-        {
-            Vector3 totalThrustVector = Vector3.zero;
-            Vessel vessel = FlightGlobals.ActiveVessel;
-            List<ModuleEngines> activeEngines = new List<ModuleEngines>();
-            totalThrust = 0.0F;
-
-            activeEngines.Clear();
-            for (int index = 0; index < vessel.parts.Count; ++index)
-            {
-                Part part = vessel.parts[index];
-                if (part.HasModule<ModuleEngines>())
-                {
-                    engines.Add(part);
-                }
-            }
-
-
-            int engineCount = 0;
-            for (int engineIndex = 0; engineIndex < vessel.ActiveEngines.Count; ++engineIndex)
-            {
-                ModuleEngines engine = vessel.ActiveEngines[engineIndex];
-                if (engine.thrustPercentage > 0)
-                {
-                    double engineKilonewtons = engine.ThrustLimit();
-                    if (!CheatOptions.InfinitePropellant)
-                    {
-
-                    }
-
-
+        
 
         /// <summary>
         /// Get the vessel's acceleration ability, in m/s2
@@ -513,6 +484,25 @@ namespace RemoteTech.FlightComputer.Commands
                 RTCore.Instance.kacAddon.DeleteAlarm(this.KaCItemId);
                 this.KaCItemId = String.Empty;
             }
+        }
+
+        private void GetThrustAndISP(Vessel vessel, out double totalThrust, out double avgISP)
+        {
+            totalThrust = 0;
+            avgISP = 0;
+
+            // generate a list of all engine parts
+
+            // discover the thrust and ISP for each engine
+
+            // add the thrust and average the ISP
+
+            // using FlightCore.GetTotalThrust()?
+
+            totalThrust = FlightCore.GetTotalThrust(vessel);
+
+            
+
         }
     }
 }
